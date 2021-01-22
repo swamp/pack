@@ -20,6 +20,7 @@ type ConstantType uint8
 
 const (
 	ConstantTypeString ConstantType = iota
+	ConstantTypeResourceName
 	ConstantTypeInteger
 	ConstantTypeBoolean
 	ConstantTypeExternalFunc
@@ -123,6 +124,13 @@ func NewStringConstant(str string) *Constant {
 	return &Constant{constantType: ConstantTypeString, str: str}
 }
 
+
+
+// NewResourceNameConstant creates a new string constant.
+func NewResourceNameConstant(str string) *Constant {
+	return &Constant{constantType: ConstantTypeResourceName, str: str}
+}
+
 // NewIntegerConstant creates a new integer constant.
 func NewIntegerConstant(v int32) *Constant {
 	return &Constant{constantType: ConstantTypeInteger, v: v}
@@ -148,6 +156,7 @@ type FunctionRefIndex uint16
 // ConstantRepo contains all the constants.
 type ConstantRepo struct {
 	stringConstants              []*Constant
+	resourceNameConstants        []*Constant
 	integerConstants             []*Constant
 	functions                    []*Function
 	externalFuncConstants        []*Constant
@@ -183,6 +192,29 @@ func (s *ConstantRepo) AddString(str string) *Constant {
 
 	return foundConstant
 }
+
+
+
+func (s *ConstantRepo) findResourceName(str string) *Constant {
+	for _, resourceNameConstant := range s.resourceNameConstants {
+		if resourceNameConstant.str == str {
+			return resourceNameConstant
+		}
+	}
+
+	return nil
+}
+
+func (s *ConstantRepo) AddResourceName(str string) *Constant {
+	foundConstant := s.findResourceName(str)
+	if foundConstant == nil {
+		foundConstant = NewResourceNameConstant(str)
+		s.resourceNameConstants = append(s.resourceNameConstants, foundConstant)
+	}
+
+	return foundConstant
+}
+
 
 func (s *ConstantRepo) findInteger(v int32) *Constant {
 	for _, integerConstant := range s.integerConstants {
@@ -411,6 +443,34 @@ func writeStrings(stringConstants []*Constant, writer io.Writer, indexOffset int
 	return count, nil
 }
 
+func writeResourceNames(resourceNameConstants []*Constant, writer io.Writer, indexOffset int) (int, error) {
+	count := len(resourceNameConstants)
+	header := []byte{byte(count)}
+
+	resourceNameIcon := raff.FourOctets{0xF0, 0x9F, 0x8C, 0xB3}
+	if err := raff.WriteInternalChunkMarker(writer, resourceNameIcon); err != nil {
+		return -1, err
+	}
+
+	if _, writeErr := writer.Write(header); writeErr != nil {
+		return 0, writeErr
+	}
+
+	for index, constant := range resourceNameConstants {
+		if constant.constantType != ConstantTypeResourceName {
+			panic("wrong resourceType type")
+		}
+
+		constant.indexPositionInFile = uint8(indexOffset + index)
+
+		if writeErr := writeString(constant.str, writer); writeErr != nil {
+			return 0, writeErr
+		}
+	}
+
+	return count, nil
+}
+
 func writeExternalFunctions(externalFuncConstants []*Constant, writer io.Writer, indexOffset int) (int, error) {
 	count := len(externalFuncConstants)
 	header := []byte{byte(count)}
@@ -565,7 +625,7 @@ func writeChunkHeader(writer io.Writer, icon raff.FourOctets, name raff.FourOcte
 }
 
 func writePackHeader(writer io.Writer) error {
-	name := raff.FourOctets{'s', 'p', 'k', '2'}
+	name := raff.FourOctets{'s', 'p', 'k', '3'}
 	packetIcon := raff.FourOctets{0xF0, 0x9F, 0x93, 0xA6}
 	return writeChunkHeader(writer, packetIcon, name, nil)
 }
@@ -627,7 +687,13 @@ func packCode(constants *ConstantRepo) ([]byte, error) {
 
 	indexOffset += offset
 
-	if _, err := writeStrings(constants.stringConstants, &buf, indexOffset); err != nil {
+	offset, err = writeStrings(constants.stringConstants, &buf, indexOffset)
+	if err != nil {
+		return nil, err
+	}
+
+	indexOffset += offset
+	if _, err := writeResourceNames(constants.resourceNameConstants, &buf, indexOffset); err != nil {
 		return nil, err
 	}
 
