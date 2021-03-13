@@ -91,11 +91,13 @@ func (f *FunctionDeclaration) String() string {
 	return fmt.Sprintf("[fundeclaration %s signature:%v parameter:%d", f.name, f.signature, f.parameterCount)
 }
 
+type IndexPositionInFile = uint16
+
 // Constant is a union of all the constant types.
 type Constant struct {
 	v                   int32
 	boolean             bool
-	indexPositionInFile uint8
+	indexPositionInFile IndexPositionInFile
 	constantType        ConstantType
 	externalFunction    *ExternalFunction
 	functionDeclaration *FunctionDeclaration
@@ -356,7 +358,7 @@ func writeBools(booleanConstants []*Constant, writer io.Writer, indexOffset int)
 			valueToWrite = uint8(1)
 		}
 
-		b.indexPositionInFile = uint8(indexOffset + index)
+		b.indexPositionInFile = IndexPositionInFile(indexOffset + index)
 
 		octets[index] = valueToWrite
 	}
@@ -387,7 +389,7 @@ func writeIntegers(integerConstants []*Constant, writer io.Writer, indexOffset i
 			panic("wrong integer type")
 		}
 
-		constant.indexPositionInFile = uint8(indexOffset + index)
+		constant.indexPositionInFile = IndexPositionInFile(indexOffset + index)
 
 		if writeErr := binary.Write(writer, binary.BigEndian, constant.v); writeErr != nil {
 			return 0, writeErr
@@ -435,7 +437,7 @@ func writeStrings(stringConstants []*Constant, writer io.Writer, indexOffset int
 			panic("wrong string type")
 		}
 
-		constant.indexPositionInFile = uint8(indexOffset + index)
+		constant.indexPositionInFile = IndexPositionInFile(indexOffset + index)
 
 		if writeErr := writeString(constant.str, writer); writeErr != nil {
 			return 0, writeErr
@@ -463,7 +465,7 @@ func writeResourceNames(resourceNameConstants []*Constant, writer io.Writer, ind
 			panic("wrong resourceType type")
 		}
 
-		constant.indexPositionInFile = uint8(indexOffset + index)
+		constant.indexPositionInFile = IndexPositionInFile(indexOffset + index)
 
 		if writeErr := writeString(constant.str, writer); writeErr != nil {
 			return 0, writeErr
@@ -491,7 +493,7 @@ func writeExternalFunctions(externalFuncConstants []*Constant, writer io.Writer,
 			panic("external_func: wrong func type")
 		}
 
-		constant.indexPositionInFile = uint8(indexOffset + index)
+		constant.indexPositionInFile = IndexPositionInFile(indexOffset + index)
 
 		f := constant.externalFunction
 		header := []byte{byte(f.parameterCount)}
@@ -532,7 +534,7 @@ func writeFunctionDeclarations(externalFuncConstants []*Constant, writer io.Writ
 			panic("external_func: wrong func type")
 		}
 
-		constant.indexPositionInFile = uint8(indexOffset + index)
+		constant.indexPositionInFile = IndexPositionInFile(indexOffset + index)
 
 		f := constant.functionDeclaration
 
@@ -585,13 +587,15 @@ func writeFunctions(functions []*Function, writer io.Writer) (int, error) {
 
 			indexInFile := subConstant.indexPositionInFile
 
-			const NotSetPosition uint8 = 0xff
+			const NotSetPosition IndexPositionInFile = 0xffff
 
 			if indexInFile == NotSetPosition {
 				panic(fmt.Errorf("wrong index for constant %v in function %v", subConstant, f))
 			}
+			constantIndexBigEndian := []byte{0, 0}
 
-			if _, writeErr := writer.Write([]byte{indexInFile}); writeErr != nil {
+			binary.BigEndian.PutUint16(constantIndexBigEndian, indexInFile)
+			if _, writeErr := writer.Write(constantIndexBigEndian); writeErr != nil {
 				return 0, writeErr
 			}
 		}
@@ -627,7 +631,7 @@ func writeChunkHeader(writer io.Writer, icon raff.FourOctets, name raff.FourOcte
 }
 
 func writePackHeader(writer io.Writer) error {
-	name := raff.FourOctets{'s', 'p', 'k', '3'}
+	name := raff.FourOctets{'s', 'p', 'k', '4'}
 	packetIcon := raff.FourOctets{0xF0, 0x9F, 0x93, 0xA6}
 	return writeChunkHeader(writer, packetIcon, name, nil)
 }
@@ -675,6 +679,7 @@ func packCode(constants *ConstantRepo) ([]byte, error) {
 
 	indexOffset += offset
 
+
 	offset, err = writeBools(constants.booleanConstants, &buf, indexOffset)
 	if err != nil {
 		return nil, err
@@ -695,6 +700,7 @@ func packCode(constants *ConstantRepo) ([]byte, error) {
 	}
 
 	indexOffset += offset
+
 	if _, err := writeResourceNames(constants.resourceNameConstants, &buf, indexOffset); err != nil {
 		return nil, err
 	}
