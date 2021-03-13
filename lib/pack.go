@@ -114,9 +114,11 @@ func (c *Constant) String() string {
 		return fmt.Sprintf("declarefunc %v", c.functionDeclaration)
 	case ConstantTypeString:
 		return fmt.Sprintf("'%v'", c.str)
+	case ConstantTypeResourceName:
+		return fmt.Sprintf("resource name '%v'", c.str)
 	}
 
-	panic("unknown")
+	panic(fmt.Errorf("unknown constant type %v", c.constantType))
 }
 
 // NewStringConstant creates a new string constant.
@@ -586,7 +588,7 @@ func writeFunctions(functions []*Function, writer io.Writer) (int, error) {
 			const NotSetPosition uint8 = 0xff
 
 			if indexInFile == NotSetPosition {
-				panic("wrong index")
+				panic(fmt.Errorf("wrong index for constant %v in function %v", subConstant, f))
 			}
 
 			if _, writeErr := writer.Write([]byte{indexInFile}); writeErr != nil {
