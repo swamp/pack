@@ -128,8 +128,6 @@ func NewStringConstant(str string) *Constant {
 	return &Constant{constantType: ConstantTypeString, str: str}
 }
 
-
-
 // NewResourceNameConstant creates a new string constant.
 func NewResourceNameConstant(str string) *Constant {
 	return &Constant{constantType: ConstantTypeResourceName, str: str}
@@ -197,8 +195,6 @@ func (s *ConstantRepo) AddString(str string) *Constant {
 	return foundConstant
 }
 
-
-
 func (s *ConstantRepo) findResourceName(str string) *Constant {
 	for _, resourceNameConstant := range s.resourceNameConstants {
 		if resourceNameConstant.str == str {
@@ -218,7 +214,6 @@ func (s *ConstantRepo) AddResourceName(str string) *Constant {
 
 	return foundConstant
 }
-
 
 func (s *ConstantRepo) findInteger(v int32) *Constant {
 	for _, integerConstant := range s.integerConstants {
@@ -414,7 +409,9 @@ func writeString(str string, writer io.Writer) error {
 }
 
 func writeTypeRef(typeRef TypeRef, writer io.Writer) error {
-	_, err := writer.Write([]byte{byte(typeRef)})
+	buf := []byte{byte(0), byte(0)}
+	binary.BigEndian.PutUint16(buf, uint16(typeRef))
+	_, err := writer.Write(buf)
 
 	return err
 }
@@ -678,7 +675,6 @@ func packCode(constants *ConstantRepo) ([]byte, error) {
 	}
 
 	indexOffset += offset
-
 
 	offset, err = writeBools(constants.booleanConstants, &buf, indexOffset)
 	if err != nil {
