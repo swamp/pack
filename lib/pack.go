@@ -23,26 +23,26 @@ func writeChunkHeader(writer io.Writer, icon raff.FourOctets, name raff.FourOcte
 }
 
 func writePackHeader(writer io.Writer) error {
-	name := raff.FourOctets{'s', 'p', 'k', '5'}
-	packetIcon := raff.FourOctets{0xF0, 0x9F, 0x93, 0xA6}
+	name := raff.MakeFourOctets('s', 'p', 'k', '5')
+	packetIcon := raff.MakeFourOctets(0xF0, 0x9F, 0x93, 0xA6)
 	return writeChunkHeader(writer, packetIcon, name, nil)
 }
 
 func writeTypeInfo(writer io.Writer, payload []byte) error {
-	name := raff.FourOctets{'s', 't', 'i', '0'}
-	packetIcon := raff.FourOctets{0xF0, 0x9F, 0x93, 0x9C}
+	name := raff.MakeFourOctets('s', 't', 'i', '0')
+	packetIcon := raff.MakeFourOctets(0xF0, 0x9F, 0x93, 0x9C)
 	return writeChunkHeader(writer, packetIcon, name, payload)
 }
 
 func writeConstantMemory(writer io.Writer, payload []byte) error {
-	name := raff.FourOctets{'d', 'm', 'e', '1'}
-	packetIcon := raff.FourOctets{0xF0, 0x9F, 0x92, 0xBB}
+	name := raff.MakeFourOctets('d', 'm', 'e', '1')
+	packetIcon := raff.MakeFourOctets(0xF0, 0x9F, 0x92, 0xBB)
 	return writeChunkHeader(writer, packetIcon, name, payload)
 }
 
 func writeLedger(writer io.Writer, payload []byte) error {
-	name := raff.FourOctets{'l', 'd', 'g', '0'}
-	packetIcon := raff.FourOctets{0xF0, 0x9F, 0x97, 0x92}
+	name := raff.MakeFourOctets('l', 'd', 'g', '0')
+	packetIcon := raff.MakeFourOctets(0xF0, 0x9F, 0x97, 0x92)
 	return writeChunkHeader(writer, packetIcon, name, payload)
 }
 

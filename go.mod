@@ -1,5 +1,5 @@
 module github.com/swamp/pack
 
-go 1.15
+go 1.19
 
-require github.com/piot/raff-go v0.0.0-20210107105329-efd4e0e14756
+require github.com/piot/raff-go v0.0.0-20230117233549-bbb38d362baa
